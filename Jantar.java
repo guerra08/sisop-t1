@@ -1,9 +1,10 @@
 import java.util.concurrent.*;
 
+
 public class Jantar {
-    static int num_canibais = 20;
-    static int num_porcoes_por_travessa = 5;
-    static volatile int travessa = 5;
+    static int num_canibais;
+    static int num_porcoes_por_travessa;
+    static volatile int travessa;
 
     static class cozinheiro implements Runnable {
         Semaphore mutex;
@@ -57,28 +58,58 @@ public class Jantar {
                     if (travessa == 0) {
                             System.out.println("Canibal " + tid + " acordando o cozinheiro.");
                             cozinha.release();
-                            enchendo.acquire();
-                            travessa = num_porcoes_por_travessa;
+                            enchendo.acquire();                            
                     }
                     travessa--;
                     System.out.println("Canibal " + tid + " comendo a porcao. Restam " + travessa + " na travessa.");
                     mutex.release();
+                    
                 }catch(InterruptedException e){}
             }
         }
     }
 
     public static void main(String[] args) {
-        Semaphore mutex = new Semaphore(1);
-        Semaphore comida = new Semaphore(num_canibais);
-        Semaphore cozinha = new Semaphore(0);
-        Semaphore enchendo = new Semaphore(0);
-        int i;
+        if(args.length < 2){
+            System.out.println("Argumentos necessários. Utilize: \njava jantar n_canibais m_porcoes\nFinalizando o programa.");
+            System.exit(0);
+        }
+        num_canibais = Integer.parseInt(args[0]);
+        num_porcoes_por_travessa = Integer.parseInt(args[1]);
+        travessa = num_porcoes_por_travessa;
 
-        Thread p = new Thread(new cozinheiro(mutex, comida, enchendo, cozinha));
+
+        /*
+        Mutex para controlar qual canibal está comendo a travessa.
+        */
+        Semaphore mutex = new Semaphore(1);
+
+
+        /*
+        /Responsável por controlar as refeições dos canibais. 
+        Cada vez que um canibal come, o valor desse semafóro é decrementado. 
+        Quando a travessa está vazia e o cozinheiro é chamado, o mesmo tem seu valor restaurado.
+        */
+        Semaphore controllerComida = new Semaphore(num_porcoes_por_travessa + 1); 
+
+        /*
+        Juntamente com o blockThread abaixo, é responsável por controlar quando o cozinheiro será chamado.
+        Tem o seu valor começado em 0. Quando a travessa esvaziar, recebe o valor 1, liberando a thread do cozinheiro para
+        que encha a travessa. Ao finalizar de encher, recebe um down, travando o cozinheiro.
+        */
+        Semaphore blockCozinheiro = new Semaphore(0);
+
+        /*
+        Responsável por fazer o canibal esperar enquanto a thread do cozinheiro realiza a ação de encher a travessa.
+        Ao encher, é liberada para que os canibais voltem a comer.
+        */
+        Semaphore blockCanibal = new Semaphore(0); 
+
+
+        Thread p = new Thread(new cozinheiro(mutex, controllerComida, blockCozinheiro, blockCanibal));
         p.start();
-        for (i = 1; i <= num_canibais; i++) {
-            Thread c = new Thread(new canibal(i, mutex, comida, enchendo, cozinha));
+        for (int i = 1; i <= num_canibais; i++) {
+            Thread c = new Thread(new canibal(i, mutex, controllerComida, blockCozinheiro, blockCanibal));
             c.start();
         }
     }
