@@ -97,9 +97,9 @@ public class Jantar {
         public void run(){
             while(true){
                 try{
-                    System.out.println("Cozinheiro acordado!! Enchendo a travessa");
                     blockCozinheiro.acquire();
                     travessaCount = mPorcoesPorTravessa;
+                    System.out.println("Cozinheiro acordado!! Enchendo a travessa");
                     for (int i = 0; i < mPorcoesPorTravessa; i++){
                         controllerComida.release();
                     }
