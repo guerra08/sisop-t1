@@ -17,11 +17,35 @@ import java.util.concurrent.*;
  * java Jantar 10 20 -> Um jantar com 10 canibais e com capacidade de 20 porções na travessa.
  */
 
-public class Jantar {
+public class Ex2 {
     static int nCanibais;
     static int mPorcoesPorTravessa;
     static volatile int travessaCount;
     
+    static volatile int[] flag;
+    static volatile int[] lastExecuted;
+
+    static void lock(int i){
+        for(int j = 1; j < nCanibais; j++){
+            flag[i] = j;
+            lastExecuted[j] = i;
+
+            while(checkFlag(i,j) && lastExecuted[j] == i);
+        }
+    }
+
+    static boolean checkFlag(int i, int j){
+        for(int k = 0; k < nCanibais; k++){
+            if( k != i && flag[k] >= j) return true;
+        }
+        return false;
+
+    }
+
+    static void unlock(int i){
+        flag[i] = 0;
+    }
+
     public static void main(String[] args) {
         if(args.length < 2){
             System.out.println("Argumentos necessários. Utilize: \njava jantar n_canibais m_porcoes\nFinalizando o programa.");
@@ -33,11 +57,9 @@ public class Jantar {
         mPorcoesPorTravessa = Integer.parseInt(args[1]);
         travessaCount = mPorcoesPorTravessa;
     
-    
-        /*
-        Mutex para controlar qual canibal está comendo a travessa.
-        */
-        Semaphore mutex = new Semaphore(1);
+        flag = new int[nCanibais];
+        lastExecuted = new int[nCanibais];
+        
     
 
         /*
@@ -64,14 +86,14 @@ public class Jantar {
         /*
         Thread responsável pelo cozinheiro.
         */
-        Thread threadCozinheiro = new Thread(new cozinheiro(mutex, controllerComida, blockCozinheiro, blockCanibal));
+        Thread threadCozinheiro = new Thread(new cozinheiro(controllerComida, blockCozinheiro, blockCanibal));
         threadCozinheiro.start();
 
         /*
         Instanciação e iniciação de cada canibal, com a quantidade indicada na execução.
         */
-        for (int i = 1; i <= nCanibais; i++) {
-            Thread threadCanibal = new Thread(new canibal(i, mutex, controllerComida, blockCozinheiro, blockCanibal));
+        for (int i = 0; i < nCanibais; i++) {
+            Thread threadCanibal = new Thread(new canibal(i,controllerComida, blockCozinheiro, blockCanibal));
             threadCanibal.start();
         }
     }
@@ -82,8 +104,7 @@ public class Jantar {
         Semaphore blockCozinheiro;
         Semaphore blockCanibal;
 
-        public cozinheiro(Semaphore mutex, Semaphore controllerComida, Semaphore blockCanibal, Semaphore blockCozinheiro) {
-            this.mutex = mutex;
+        public cozinheiro(Semaphore controllerComida, Semaphore blockCanibal, Semaphore blockCozinheiro) {
             this.controllerComida = controllerComida;
             this.blockCozinheiro = blockCozinheiro;
             this.blockCanibal = blockCanibal;
@@ -117,8 +138,7 @@ public class Jantar {
         Semaphore blockCanibal;
         private int tid;
 
-        public canibal(int id, Semaphore mutex, Semaphore controllerComida, Semaphore blockCanibal, Semaphore blockCozinheiro) {
-            this.mutex = mutex;
+        public canibal(int id, Semaphore controllerComida, Semaphore blockCanibal, Semaphore blockCozinheiro) {
             this.controllerComida = controllerComida;
             this.blockCozinheiro = blockCozinheiro;
             this.blockCanibal = blockCanibal;
@@ -134,7 +154,8 @@ public class Jantar {
             while (true) {
                 try{
                     controllerComida.acquire();
-                    mutex.acquire();
+                    lock(tid);
+                    // mutex.acquire();
                     if (travessaCount == 0) {
                             System.out.println("Canibal " + tid + " acordando o cozinheiro.");
                             blockCozinheiro.release();
@@ -143,8 +164,7 @@ public class Jantar {
                     travessaCount--;
                     System.out.println("Canibal " + tid + " comendo a porcao. Restam " + travessaCount + " na travessa.");
                     Thread.sleep(500);
-                    mutex.release();
-                    
+                    unlock(tid);
                 }catch(InterruptedException e){}
             }
         }
