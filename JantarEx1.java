@@ -17,7 +17,7 @@ import java.util.concurrent.*;
  * java Jantar 10 20 -> Um jantar com 10 canibais e com capacidade de 20 porções na travessa.
  */
 
-public class Jantar {
+public class JantarEx1 {
     static int nCanibais;
     static int mPorcoesPorTravessa;
     static volatile int travessaCount;

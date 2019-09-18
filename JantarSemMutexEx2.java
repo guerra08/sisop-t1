@@ -17,34 +17,13 @@ import java.util.concurrent.*;
  * java Jantar 10 20 -> Um jantar com 10 canibais e com capacidade de 20 porções na travessa.
  */
 
-public class Ex2 {
+public class JantarSemMutexEx2 {
     static int nCanibais;
     static int mPorcoesPorTravessa;
     static volatile int travessaCount;
     
-    static volatile int[] flag;
-    static volatile int[] lastExecuted;
-
-    static void lock(int i){
-        for(int j = 1; j < nCanibais; j++){
-            flag[i] = j;
-            lastExecuted[j] = i;
-
-            while(checkFlag(i,j) && lastExecuted[j] == i);
-        }
-    }
-
-    static boolean checkFlag(int i, int j){
-        for(int k = 0; k < nCanibais; k++){
-            if( k != i && flag[k] >= j) return true;
-        }
-        return false;
-
-    }
-
-    static void unlock(int i){
-        flag[i] = 0;
-    }
+    static Peterson peterson;
+  
 
     public static void main(String[] args) {
         if(args.length < 2){
@@ -56,10 +35,14 @@ public class Ex2 {
         nCanibais = Integer.parseInt(args[0]);
         mPorcoesPorTravessa = Integer.parseInt(args[1]);
         travessaCount = mPorcoesPorTravessa;
-    
-        flag = new int[nCanibais];
-        lastExecuted = new int[nCanibais];
         
+
+        /*
+        Instancia da classe Peterson, onde estão implementados os métodos lock e unlock
+        para a questão 2, na qual substitui-se os métodos acquire e release do Mutex com os métodos
+        implementados na classe.
+        */
+        peterson = new Peterson(nCanibais);    
     
 
         /*
@@ -154,8 +137,7 @@ public class Ex2 {
             while (true) {
                 try{
                     controllerComida.acquire();
-                    lock(tid);
-                    // mutex.acquire();
+                    peterson.lock(tid);
                     if (travessaCount == 0) {
                             System.out.println("Canibal " + tid + " acordando o cozinheiro.");
                             blockCozinheiro.release();
@@ -164,9 +146,11 @@ public class Ex2 {
                     travessaCount--;
                     System.out.println("Canibal " + tid + " comendo a porcao. Restam " + travessaCount + " na travessa.");
                     Thread.sleep(500);
-                    unlock(tid);
+                    peterson.unlock(tid);
                 }catch(InterruptedException e){}
             }
         }
     }
+
+    
 }
